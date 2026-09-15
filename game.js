@@ -14,7 +14,7 @@
     lifestealPerKill: 2,   // HP restored per zombie killed
     },
     lines: {
-      damageLineFromTop: 0.25, // quarter of the field — enemies past this drain HP
+      damageLineFromTop: 0.15, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
       dpsPerEnemy: 2,          // HP/sec drained per enemy currently past the damage line
     },
