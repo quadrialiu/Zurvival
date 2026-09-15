@@ -8,7 +8,7 @@
 
   const CONFIG = {
     player: {
-      startHp: 100,
+      startHp: 200,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
     },
