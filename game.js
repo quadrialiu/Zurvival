@@ -8,7 +8,7 @@
 
   const CONFIG = {
     player: {
-      startHp: 200,
+      startHp: 100,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
     lifestealPerKill: 10,   // HP restored per zombie killed
@@ -16,7 +16,7 @@
     lines: {
       damageLineFromTop: 25, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 2,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 1,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
