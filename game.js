@@ -39,7 +39,7 @@
       hpMult: 1.16,
       speedMult: 1.06,
     },
-    milestones: [20, 50, 100, 175, 275, 400, 550, 750, 1000, 1300, 1650, 2050],
+    milestones: [20, 50, 75, 100, 150, 200, 275, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
     // impossibly far apart while still growing:
     milestoneGapGrowth: 1.22,
