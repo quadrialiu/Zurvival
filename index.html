@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>OUTBREAK // survival prototype</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game-root">
+
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD: always visible during play -->
+    <div id="hud">
+      <div id="hp-wrap">
+        <div id="hp-bar"><div id="hp-fill"></div></div>
+        <div id="hp-label"><span id="hp-value">100</span> HP</div>
+      </div>
+      <div id="kill-wrap">
+        <div id="kill-count">0</div>
+        <div id="kill-label">kills</div>
+      </div>
+      <div id="milestone-wrap">
+        next upgrade <span id="milestone-value">20</span>
+      </div>
+    </div>
+
+    <!-- Start screen -->
+    <div id="start-screen" class="overlay">
+      <div class="overlay-card">
+        <h1>OUTBREAK</h1>
+        <p class="tag">a small dot. an endless swarm. one gun that never stops learning.</p>
+        <div class="best-line" id="start-best-line" hidden>
+          personal best — <span id="start-best-value">0</span> kills
+        </div>
+        <button id="start-btn" class="btn btn-primary">start run</button>
+        <p class="hint">the gun aims and fires on its own — just survive</p>
+      </div>
+    </div>
+
+    <!-- Upgrade screen -->
+    <div id="upgrade-screen" class="overlay" hidden>
+      <div class="overlay-card wide">
+        <div class="upgrade-kicker">milestone reached</div>
+        <h2><span id="upgrade-kill-count">20</span> kills</h2>
+        <p class="tag">choose one upgrade</p>
+        <div id="upgrade-options" class="upgrade-options"></div>
+      </div>
+    </div>
+
+    <!-- Game over screen -->
+    <div id="gameover-screen" class="overlay" hidden>
+      <div class="overlay-card">
+        <div class="over-kicker">run over</div>
+        <div class="score-row">
+          <div class="score-block">
+            <div class="score-value" id="final-kills">0</div>
+            <div class="score-label">kills</div>
+          </div>
+          <div class="score-divider"></div>
+          <div class="score-block">
+            <div class="score-value" id="final-best">0</div>
+            <div class="score-label">personal best</div>
+          </div>
+        </div>
+        <div id="new-best-badge" class="new-best-badge" hidden>new personal best</div>
+        <button id="restart-btn" class="btn btn-primary">run again</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
