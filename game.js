@@ -12,9 +12,10 @@
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
     },
-    dangerLine: {
-      fromTop: 0.24,         // fraction of field height
-      dpsPerEnemy: 5,        // HP/sec drained per enemy currently past the line
+    lines: {
+      damageLineFromTop: 0.25, // quarter of the field — enemies past this drain HP
+      barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
+      dpsPerEnemy: 5,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
@@ -133,8 +134,12 @@
     return { x: W / 2, y: H - CONFIG.player.bottomOffset };
   }
 
-  function dangerLineY() {
-    return H * CONFIG.dangerLine.fromTop;
+  function damageLineY() {
+    return H * CONFIG.lines.damageLineFromTop;
+  }
+
+  function barricadeLineY() {
+    return playerPos().y - CONFIG.lines.barricadeGapAbovePlayer;
   }
 
   function nextMilestoneKills(index) {
@@ -201,9 +206,43 @@
     return best;
   }
 
-  function fireAt(from, target) {
+  function computeInterceptAngle(from, target, targetVy) {
+    const dx = target.x - from.x;
+    const dy = target.y - from.y;
+
+    // stationary target (already stopped at the barricade) — no lead needed
+    if (!targetVy) return Math.atan2(dy, dx);
+
+    const s = state.weapon.projectileSpeed;
+    // solve |r + vT t| = s t  for the smallest positive t (vT is vertical-only: (0, targetVy))
+    const a = targetVy * targetVy - s * s;
+    const b = 2 * dy * targetVy;
+    const c = dx * dx + dy * dy;
+    let t = null;
+
+    if (Math.abs(a) < 1e-6) {
+      if (Math.abs(b) > 1e-6) {
+        const tt = -c / b;
+        if (tt > 0) t = tt;
+      }
+    } else {
+      const disc = b * b - 4 * a * c;
+      if (disc >= 0) {
+        const sq = Math.sqrt(disc);
+        const candidates = [(-b + sq) / (2 * a), (-b - sq) / (2 * a)].filter(tt => tt > 0);
+        if (candidates.length) t = Math.min(...candidates);
+      }
+    }
+
+    if (t === null) return Math.atan2(dy, dx); // no valid intercept — fall back to direct aim
+
+    const aimY = target.y + targetVy * t;
+    return Math.atan2(aimY - from.y, dx);
+  }
+
+  function fireAt(from, target, targetVy) {
     const w = state.weapon;
-    const baseAngle = Math.atan2(target.y - from.y, target.x - from.x);
+    const baseAngle = computeInterceptAngle(from, target, targetVy);
     const n = w.projectileCount;
     const mid = (n - 1) / 2;
     for (let i = 0; i < n; i++) {
@@ -245,7 +284,8 @@
 
   function update(dt) {
     const from = playerPos();
-    const dLine = dangerLineY();
+    const dmgLineY = damageLineY();
+    const barricadeY = barricadeLineY();
 
     // spawn
     state.spawnTimer -= dt;
@@ -254,21 +294,26 @@
       state.spawnTimer = currentSpawnInterval();
     }
 
-    // fire
+    // fire — lead the shot based on the target's *current* vertical speed
+    // (0 once it has already piled up at the barricade)
     state.fireTimer -= dt;
     if (state.fireTimer <= 0 && state.zombies.length > 0) {
       const target = findNearestZombie(from);
       if (target) {
-        fireAt(from, target);
+        const targetVy = target.y >= barricadeY ? 0 : target.speed;
+        fireAt(from, target, targetVy);
         state.fireTimer = 1 / state.weapon.fireRate;
       }
     }
 
-    // move zombies + danger-line damage
+    // move zombies (stop dead at the barricade) + damage-line drain
     let dpsThisFrame = 0;
     for (const zb of state.zombies) {
-      zb.y += zb.speed * dt;
-      if (zb.y >= dLine) dpsThisFrame += CONFIG.dangerLine.dpsPerEnemy;
+      if (zb.y < barricadeY) {
+        zb.y += zb.speed * dt;
+        if (zb.y > barricadeY) zb.y = barricadeY;
+      }
+      if (zb.y >= dmgLineY) dpsThisFrame += CONFIG.lines.dpsPerEnemy;
     }
     if (dpsThisFrame > 0) {
       state.hp = Math.max(0, state.hp - dpsThisFrame * dt);
@@ -320,16 +365,25 @@
   function render() {
     ctx.clearRect(0, 0, W, H);
 
-    // danger line
-    const dLine = dangerLineY();
+    // damage line
+    const dmgLineY = damageLineY();
     ctx.strokeStyle = 'rgba(255, 59, 59, 0.55)';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 8]);
     ctx.beginPath();
-    ctx.moveTo(0, dLine);
-    ctx.lineTo(W, dLine);
+    ctx.moveTo(0, dmgLineY);
+    ctx.lineTo(W, dmgLineY);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // barricade line
+    const barricadeY = barricadeLineY();
+    ctx.strokeStyle = 'rgba(255, 176, 66, 0.75)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, barricadeY);
+    ctx.lineTo(W, barricadeY);
+    ctx.stroke();
 
     // zombies
     for (const zb of state.zombies) {
