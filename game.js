@@ -11,6 +11,7 @@
       startHp: 200,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
+    lifestealPerKill: 1.5,   // HP restored per zombie killed
     },
     lines: {
       damageLineFromTop: 0.25, // quarter of the field — enemies past this drain HP
@@ -264,15 +265,17 @@
   // ---------------------------------------------------------------
 
   function killZombie(zb) {
-    state.zombies.splice(state.zombies.indexOf(zb), 1);
-    state.kills += 1;
-    killCountEl.textContent = state.kills;
-    killCountEl.classList.remove('pop');
-    // restart the animation
-    void killCountEl.offsetWidth;
-    killCountEl.classList.add('pop');
-    maybeTriggerMilestone();
-  }
+  state.zombies.splice(state.zombies.indexOf(zb), 1);
+  state.kills += 1;
+  state.hp = Math.min(CONFIG.player.startHp, state.hp + CONFIG.player.lifestealPerKill);
+  killCountEl.textContent = state.kills;
+  killCountEl.classList.remove('pop');
+  // restart the animation
+  void killCountEl.offsetWidth;
+  killCountEl.classList.add('pop');
+  maybeTriggerMilestone();
+}
+
 
   function maybeTriggerMilestone() {
     const target = nextMilestoneKills(state.milestoneIndex);
