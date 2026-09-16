@@ -20,7 +20,7 @@
     },
     zombie: {
       baseHp: 20,
-      baseSpeed: 60,         // px/sec
+      baseSpeed: 58,         // px/sec
       radius: 13,
       spawnIntervalStart: 1.15, // seconds between spawns at run start
       spawnIntervalMin: 0.32,
@@ -166,6 +166,7 @@
       fireTimer: 0,
       enemyHpMult: 1,
       enemySpeedMult: 1,
+      debugSpawnInterval: null, // cheat override; null = normal kill-based ramp
       lastTime: 0,
     };
   }
@@ -229,6 +230,7 @@
   // ---------------------------------------------------------------
 
   function currentSpawnInterval() {
+    if (state.debugSpawnInterval != null) return state.debugSpawnInterval;
     const z = CONFIG.zombie;
     const t = Math.min(1, state.kills / z.spawnRampKills);
     return z.spawnIntervalStart + (z.spawnIntervalMin - z.spawnIntervalStart) * t;
@@ -442,35 +444,31 @@
 }
 
 
-  function maybeTriggerMilestone() {
+  // Checks weapon then passive milestones, chaining screens as needed.
+  // Safe to call both mid-run (state.running true — does nothing if no
+  // milestone is due) and after a screen closes or a cheat jump (running
+  // false — resumes the loop once nothing further is due).
+  function checkMilestones() {
     const weaponTarget = nextMilestoneKills(state.milestoneIndex);
     if (state.kills >= weaponTarget) {
       state.running = false;
       showUpgradeScreen(weaponTarget);
-      return; // showPassiveScreenIfDue() runs after this screen is resolved
+      return;
     }
-    const passiveTarget = nextPassiveMilestoneKills(state.passiveMilestoneIndex);
-    if (state.kills >= passiveTarget) {
-      state.running = false;
-      showPassiveScreenIfDue();
-    }
-  }
-
-  // Checks the passive track and shows its screen if due; otherwise resumes
-  // the run. Called both directly (no weapon milestone this frame) and
-  // after a weapon-upgrade pick (weapon + passive milestone hit together).
-  function showPassiveScreenIfDue() {
     const passiveTarget = nextPassiveMilestoneKills(state.passiveMilestoneIndex);
     if (state.kills >= passiveTarget) {
       const options = pickPassiveOptions();
       if (options.length > 0) {
+        state.running = false;
         showPassiveScreen(passiveTarget, options);
         return;
       }
-      // both caps full — nothing to offer, skip this milestone silently
+      // both caps full — nothing to offer, skip this milestone and keep checking
       state.passiveMilestoneIndex += 1;
+      checkMilestones();
+      return;
     }
-    resumeRun();
+    if (!state.running) resumeRun();
   }
 
   function resumeRun() {
@@ -758,9 +756,105 @@
   restartBtn.addEventListener('click', startRun);
 
   // ---------------------------------------------------------------
+  // Debug panel (?debug=1) — testing cheats, invisible in normal play
+  // ---------------------------------------------------------------
+
+  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+
+  function setupDebugPanel() {
+    if (!DEBUG) return;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:99999;font:11px/1.4 monospace;';
+
+    const toggle = document.createElement('button');
+    toggle.textContent = '🛠';
+    toggle.style.cssText = 'width:32px;height:32px;border-radius:16px;background:#222;color:#fff;border:1px solid #555;opacity:0.8;';
+
+    const panel = document.createElement('div');
+    panel.style.cssText = 'display:none;flex-direction:column;gap:6px;background:#181818;color:#eee;padding:10px;border-radius:8px;border:1px solid #444;width:220px;max-height:70vh;overflow-y:auto;position:absolute;bottom:38px;right:0;';
+
+    toggle.addEventListener('click', () => {
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    function row(labelText, inputAttrs, onApply) {
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:4px;align-items:center;';
+      const label = document.createElement('span');
+      label.textContent = labelText;
+      label.style.cssText = 'flex:1;';
+      const input = document.createElement('input');
+      Object.assign(input, { type: 'number', step: 'any' }, inputAttrs);
+      input.style.cssText = 'width:64px;background:#222;color:#fff;border:1px solid #555;';
+      const btn = document.createElement('button');
+      btn.textContent = 'Set';
+      btn.style.cssText = 'background:#334;color:#fff;border:1px solid #556;';
+      btn.addEventListener('click', () => onApply(input.value));
+      r.append(label, input, btn);
+      panel.appendChild(r);
+      return input;
+    }
+
+    function heading(text) {
+      const h = document.createElement('div');
+      h.textContent = text;
+      h.style.cssText = 'margin-top:6px;color:#8f8;font-weight:bold;';
+      panel.appendChild(h);
+    }
+
+    heading('Kills');
+    row('kills →', {}, v => {
+      if (!state) return;
+      const n = Math.max(0, Math.floor(Number(v)));
+      if (!Number.isFinite(n)) return;
+      state.kills = n;
+      killCountEl.textContent = state.kills;
+      checkMilestones();
+    });
+
+    heading('Zombies');
+    row('HP ×', {}, v => { if (state && v !== '') state.enemyHpMult = Number(v); });
+    row('Speed ×', {}, v => { if (state && v !== '') state.enemySpeedMult = Number(v); });
+    row('Spawn (s, blank=off)', { step: '0.01' }, v => {
+      if (!state) return;
+      state.debugSpawnInterval = v === '' ? null : Math.max(0.05, Number(v));
+    });
+
+    heading('Weapon (player)');
+    row('Damage', {}, v => { if (state && v !== '') state.weapon.damage = Number(v); });
+    row('Fire rate', {}, v => { if (state && v !== '') state.weapon.fireRate = Number(v); });
+    row('Proj speed', {}, v => { if (state && v !== '') state.weapon.projectileSpeed = Number(v); });
+    row('Proj count', {}, v => { if (state && v !== '') state.weapon.projectileCount = Math.max(1, Math.floor(Number(v))); });
+    row('Pierce', {}, v => { if (state && v !== '') state.weapon.pierce = Math.max(0, Math.floor(Number(v))); });
+
+    heading('Passives');
+    const passiveRow = document.createElement('div');
+    passiveRow.style.cssText = 'display:flex;gap:4px;';
+    const addPassiveBtn = (label, type) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'flex:1;background:#334;color:#fff;border:1px solid #556;';
+      b.addEventListener('click', () => {
+        if (!state) return;
+        const opt = PASSIVE_POOL.find(o => o.id === type);
+        if (opt && opt.canOffer()) summonPassive(type);
+      });
+      passiveRow.appendChild(b);
+    };
+    addPassiveBtn('+Turret', 'turret');
+    addPassiveBtn('+Teammate', 'teammate');
+    panel.appendChild(passiveRow);
+
+    wrap.append(toggle, panel);
+    document.body.appendChild(wrap);
+  }
+
+  // ---------------------------------------------------------------
   // Boot
   // ---------------------------------------------------------------
 
   resizeCanvas();
   showStartScreen();
+  setupDebugPanel();
 })();
