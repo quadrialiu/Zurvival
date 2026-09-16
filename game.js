@@ -440,7 +440,7 @@
   // restart the animation
   void killCountEl.offsetWidth;
   killCountEl.classList.add('pop');
-  maybeTriggerMilestone();
+  checkMilestones();
 }
 
 
@@ -689,7 +689,7 @@
     milestoneValueEl.textContent = nextMilestoneKills(state.milestoneIndex);
 
     // a passive milestone might have landed on this same kill count
-    showPassiveScreenIfDue();
+    checkMilestones();
   }
 
   function pickPassiveOptions() {
@@ -703,7 +703,7 @@
   function choosePassive(opt) {
     summonPassive(opt.id);
     state.passiveMilestoneIndex += 1;
-    resumeRun();
+    checkMilestones();
   }
 
   function showGameOver() {
