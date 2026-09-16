@@ -22,8 +22,8 @@
       baseHp: 20,
       baseSpeed: 70,         // px/sec
       radius: 13,
-      spawnIntervalStart: 1.15, // seconds between spawns at run start
-      spawnIntervalMin: 0.60,
+      spawnIntervalStart: 1.40, // seconds between spawns at run start
+      spawnIntervalMin: 0.90,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
@@ -36,8 +36,8 @@
       spread: 0.12,          // radians between multiple projectiles
     },
     enemyScalingPerMilestone: {
-      hpMult: 1.25,
-      speedMult: 1.25,
+      hpMult: 1.50,
+      speedMult: 1.50,
     },
     milestones: [20, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
