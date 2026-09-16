@@ -11,7 +11,7 @@
       startHp: 100,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
-    lifestealPerKill: 3,   // HP restored per zombie killed
+    lifestealPerKill: 2,   // HP restored per zombie killed
     },
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
