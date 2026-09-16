@@ -27,7 +27,7 @@
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
-      damage: 10,
+      damage: 20,
       fireRate: 2,           // shots per second
       projectileSpeed: 430,
       projectileCount: 1,
