@@ -39,10 +39,32 @@
       hpMult: 1.16,
       speedMult: 1.06,
     },
-    milestones: [20, 50, 75, 100, 150, 200, 275, 400, 550, 750, 1000, 1300, 1650, 2050],
+    milestones: [20, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
     // impossibly far apart while still growing:
     milestoneGapGrowth: 1.22,
+    // passive (turret/teammate) milestones — a separate track from weapon
+    // upgrades. If a kill count hits both a weapon and a passive milestone,
+    // the weapon screen is shown first, then the passive screen.
+    passiveMilestones: [75, 200, 400, 700, 1100, 1600],
+    passiveMilestoneGapGrowth: 1.3,
+    passive: {
+      maxTurrets: 2,
+      maxTeammates: 4,
+      maxPerSide: 3,
+      slotOffsetX: 30,       // px between each ally slot, outward from the player
+      turret: {
+        damageMult: 0.4,      // relative to CONFIG.weapon at the moment it's summoned
+        fireRateMult: 3.5,    // spam-fire during its burst window
+        sweepDeg: 25,         // ± from straight up
+        burstDuration: 2,     // seconds actively firing
+        reloadDuration: 1.2,  // seconds silent between bursts
+      },
+      teammate: {
+        damageMult: 0.8,
+        fireRateMult: 1,      // steady pace, matches base weapon fire rate
+      },
+    },
   };
 
   const UPGRADE_POOL = [
@@ -51,6 +73,21 @@
     { id: 'projspeed', name: 'Overcharged Barrel', desc: '+30% projectile speed', apply: w => { w.projectileSpeed *= 1.3; } },
     { id: 'multishot', name: 'Split Chamber', desc: '+1 projectile', apply: w => { w.projectileCount += 1; } },
     { id: 'pierce', name: 'Armor Shredder', desc: '+1 target the shot can pass through', apply: w => { w.pierce += 1; } },
+  ];
+
+  const PASSIVE_POOL = [
+    {
+      id: 'turret',
+      name: 'Turret',
+      desc: 'Sweeping gatling turret — bursts of rapid, low-damage fire',
+      canOffer: () => state.passives.filter(u => u.type === 'turret').length < CONFIG.passive.maxTurrets,
+    },
+    {
+      id: 'teammate',
+      name: 'Teammate',
+      desc: 'Steady ally — auto-targets its nearest enemy at a fixed pace',
+      canOffer: () => state.passives.filter(u => u.type === 'teammate').length < CONFIG.passive.maxTeammates,
+    },
   ];
 
   const BEST_KEY = 'outbreak_personal_best_v1';
@@ -119,9 +156,11 @@
       running: false,
       hp: CONFIG.player.startHp,
       kills: 0,
-      milestoneIndex: 0,       // which milestone we're heading toward
+      milestoneIndex: 0,       // which weapon milestone we're heading toward
+      passiveMilestoneIndex: 0, // which passive milestone we're heading toward
       zombies: [],             // {x,y,hp,maxHp,speed}
       bullets: [],             // {x,y,vx,vy,damage,pierceLeft,hitIds:Set}
+      passives: [],            // {type,side,slot,weapon,fireTimer,mode?,modeTimer?,sweepPhase?}
       weapon: { ...CONFIG.weapon },
       spawnTimer: 0,
       fireTimer: 0,
@@ -152,6 +191,20 @@
     let i = list.length;
     while (i <= index) {
       gap *= CONFIG.milestoneGapGrowth;
+      last += gap;
+      i++;
+    }
+    return Math.round(last);
+  }
+
+  function nextPassiveMilestoneKills(index) {
+    const list = CONFIG.passiveMilestones;
+    if (index < list.length) return list[index];
+    let last = list[list.length - 1];
+    let gap = last - list[list.length - 2];
+    let i = list.length;
+    while (i <= index) {
+      gap *= CONFIG.passiveMilestoneGapGrowth;
       last += gap;
       i++;
     }
@@ -207,14 +260,14 @@
     return best;
   }
 
-  function computeInterceptAngle(from, target, targetVy) {
+  function computeInterceptAngle(from, target, targetVy, projectileSpeed) {
     const dx = target.x - from.x;
     const dy = target.y - from.y;
 
     // stationary target (already stopped at the barricade) — no lead needed
     if (!targetVy) return Math.atan2(dy, dx);
 
-    const s = state.weapon.projectileSpeed;
+    const s = projectileSpeed;
     // solve |r + vT t| = s t  for the smallest positive t (vT is vertical-only: (0, targetVy))
     const a = targetVy * targetVy - s * s;
     const b = 2 * dy * targetVy;
@@ -243,7 +296,7 @@
 
   function fireAt(from, target, targetVy) {
     const w = state.weapon;
-    const baseAngle = computeInterceptAngle(from, target, targetVy);
+    const baseAngle = computeInterceptAngle(from, target, targetVy, w.projectileSpeed);
     const n = w.projectileCount;
     const mid = (n - 1) / 2;
     for (let i = 0; i < n; i++) {
@@ -257,6 +310,118 @@
         pierceLeft: w.pierce,
         hit: new Set(),
       });
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Passives (turrets / teammates)
+  // ---------------------------------------------------------------
+
+  function summonPassive(type) {
+    const typeCfg = CONFIG.passive[type];
+    // own weapon-stat object, seeded fresh from the base config — NOT from
+    // the player's currently-upgraded stats, and not shared with the
+    // player's weapon object, so later weapon upgrades apply only to
+    // units that already exist at pick-time.
+    const weapon = { ...CONFIG.weapon };
+    weapon.damage *= typeCfg.damageMult;
+    weapon.fireRate *= typeCfg.fireRateMult;
+
+    const leftCount = state.passives.filter(u => u.side === -1).length;
+    const rightCount = state.passives.filter(u => u.side === 1).length;
+    const side = leftCount <= rightCount ? -1 : 1;
+    const slot = state.passives.filter(u => u.side === side).length;
+
+    const unit = {
+      type,
+      side,
+      slot,
+      weapon,
+      fireTimer: 1 / weapon.fireRate,
+    };
+    if (type === 'turret') {
+      unit.mode = 'burst';
+      unit.modeTimer = typeCfg.burstDuration;
+      unit.sweepPhase = Math.random() * Math.PI * 2;
+    }
+    state.passives.push(unit);
+  }
+
+  function passivePos(unit) {
+    const p = playerPos();
+    const step = CONFIG.passive.slotOffsetX;
+    return { x: p.x + unit.side * step * (unit.slot + 1), y: p.y };
+  }
+
+  function fireFixed(from, angle, weapon) {
+    const n = weapon.projectileCount;
+    const mid = (n - 1) / 2;
+    for (let i = 0; i < n; i++) {
+      const a = angle + (i - mid) * weapon.spread;
+      state.bullets.push({
+        x: from.x,
+        y: from.y,
+        vx: Math.cos(a) * weapon.projectileSpeed,
+        vy: Math.sin(a) * weapon.projectileSpeed,
+        damage: weapon.damage,
+        pierceLeft: weapon.pierce,
+        hit: new Set(),
+      });
+    }
+  }
+
+  function updatePassives(dt) {
+    const UP = -Math.PI / 2; // straight up
+    for (const u of state.passives) {
+      const pos = passivePos(u);
+
+      if (u.type === 'teammate') {
+        u.fireTimer -= dt;
+        if (u.fireTimer <= 0) {
+          const target = findNearestZombie(pos);
+          if (target) {
+            const barricadeY = barricadeLineY();
+            const targetVy = target.y >= barricadeY ? 0 : target.speed;
+            const angle = computeInterceptAngle(pos, target, targetVy, u.weapon.projectileSpeed);
+            fireFixed(pos, angle, u.weapon);
+            u.fireTimer = 1 / u.weapon.fireRate;
+          }
+        }
+        continue;
+      }
+
+      // turret: burst / reload cycle with a sweeping angle while bursting
+      const tCfg = CONFIG.passive.turret;
+      u.modeTimer -= dt;
+      if (u.mode === 'burst') {
+        u.fireTimer -= dt;
+        if (u.fireTimer <= 0) {
+          const sweepRad = tCfg.sweepDeg * Math.PI / 180;
+          const sweep = Math.sin(performance.now() / 1000 * 6 + u.sweepPhase) * sweepRad;
+          fireFixed(pos, UP + sweep, u.weapon);
+          u.fireTimer = 1 / u.weapon.fireRate;
+        }
+        if (u.modeTimer <= 0) {
+          u.mode = 'reload';
+          u.modeTimer = tCfg.reloadDuration;
+        }
+      } else if (u.modeTimer <= 0) {
+        u.mode = 'burst';
+        u.modeTimer = tCfg.burstDuration;
+      }
+    }
+  }
+
+  function renderPassives() {
+    for (const u of state.passives) {
+      const pos = passivePos(u);
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, u.type === 'turret' ? 10 : 9, 0, Math.PI * 2);
+      ctx.fillStyle = u.type === 'turret' ? '#66d9ff' : '#c9a4ff';
+      ctx.shadowColor = u.type === 'turret' ? 'rgba(102,217,255,0.6)' : 'rgba(201,164,255,0.6)';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -278,11 +443,41 @@
 
 
   function maybeTriggerMilestone() {
-    const target = nextMilestoneKills(state.milestoneIndex);
-    if (state.kills >= target) {
+    const weaponTarget = nextMilestoneKills(state.milestoneIndex);
+    if (state.kills >= weaponTarget) {
       state.running = false;
-      showUpgradeScreen(target);
+      showUpgradeScreen(weaponTarget);
+      return; // showPassiveScreenIfDue() runs after this screen is resolved
     }
+    const passiveTarget = nextPassiveMilestoneKills(state.passiveMilestoneIndex);
+    if (state.kills >= passiveTarget) {
+      state.running = false;
+      showPassiveScreenIfDue();
+    }
+  }
+
+  // Checks the passive track and shows its screen if due; otherwise resumes
+  // the run. Called both directly (no weapon milestone this frame) and
+  // after a weapon-upgrade pick (weapon + passive milestone hit together).
+  function showPassiveScreenIfDue() {
+    const passiveTarget = nextPassiveMilestoneKills(state.passiveMilestoneIndex);
+    if (state.kills >= passiveTarget) {
+      const options = pickPassiveOptions();
+      if (options.length > 0) {
+        showPassiveScreen(passiveTarget, options);
+        return;
+      }
+      // both caps full — nothing to offer, skip this milestone silently
+      state.passiveMilestoneIndex += 1;
+    }
+    resumeRun();
+  }
+
+  function resumeRun() {
+    hideAllScreens();
+    state.running = true;
+    state.lastTime = 0;
+    requestAnimationFrame(loop);
   }
 
   function update(dt) {
@@ -308,6 +503,8 @@
         state.fireTimer = 1 / state.weapon.fireRate;
       }
     }
+
+    updatePassives(dt);
 
     // move zombies (stop dead at the barricade) + damage-line drain
     let dpsThisFrame = 0;
@@ -405,6 +602,8 @@
       ctx.fill();
     }
 
+    renderPassives();
+
     // player
     const p = playerPos();
     ctx.beginPath();
@@ -448,20 +647,23 @@
     gameoverScreen.hidden = true;
   }
 
-  function showUpgradeScreen(reachedAt) {
+  function renderOptionScreen(reachedAt, options, onChoose) {
     hideAllScreens();
     upgradeScreen.hidden = false;
     upgradeKillCount.textContent = reachedAt;
 
-    const options = pickUpgradeOptions(3);
     upgradeOptionsEl.innerHTML = '';
     for (const opt of options) {
       const btn = document.createElement('button');
       btn.className = 'upgrade-option';
       btn.innerHTML = `<span class="opt-name">${opt.name}</span><span class="opt-desc">${opt.desc}</span>`;
-      btn.addEventListener('click', () => chooseUpgrade(opt));
+      btn.addEventListener('click', () => onChoose(opt));
       upgradeOptionsEl.appendChild(btn);
     }
+  }
+
+  function showUpgradeScreen(reachedAt) {
+    renderOptionScreen(reachedAt, pickUpgradeOptions(3), chooseUpgrade);
   }
 
   function pickUpgradeOptions(n) {
@@ -475,19 +677,35 @@
   }
 
   function chooseUpgrade(opt) {
+    // applies to the player's weapon AND every passive that already
+    // exists — a passive summoned later starts fresh at base values,
+    // per the "seeded at base values at summon time" rule.
     opt.apply(state.weapon);
+    for (const u of state.passives) opt.apply(u.weapon);
 
-    // scale enemies up, then move to the next milestone target
+    // scale enemies up, then move to the next weapon milestone target
     state.enemyHpMult *= CONFIG.enemyScalingPerMilestone.hpMult;
     state.enemySpeedMult *= CONFIG.enemyScalingPerMilestone.speedMult;
     state.milestoneIndex += 1;
 
     milestoneValueEl.textContent = nextMilestoneKills(state.milestoneIndex);
 
-    hideAllScreens();
-    state.running = true;
-    state.lastTime = 0;
-    requestAnimationFrame(loop);
+    // a passive milestone might have landed on this same kill count
+    showPassiveScreenIfDue();
+  }
+
+  function pickPassiveOptions() {
+    return PASSIVE_POOL.filter(opt => opt.canOffer());
+  }
+
+  function showPassiveScreen(reachedAt, options) {
+    renderOptionScreen(reachedAt, options, choosePassive);
+  }
+
+  function choosePassive(opt) {
+    summonPassive(opt.id);
+    state.passiveMilestoneIndex += 1;
+    resumeRun();
   }
 
   function showGameOver() {
