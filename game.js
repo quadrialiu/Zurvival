@@ -16,7 +16,7 @@
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 3,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 2,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
