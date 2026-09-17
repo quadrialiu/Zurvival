@@ -20,7 +20,7 @@
     },
     zombie: {
       baseHp: 20,
-      baseSpeed: 70,         // px/sec
+      baseSpeed: 40,         // px/sec
       radius: 13,
       spawnIntervalStart: 1.50, // seconds between spawns at run start
       spawnIntervalMin: 0.30,
