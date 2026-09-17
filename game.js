@@ -16,11 +16,11 @@
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 0.1,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 0.2,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 10,
-      baseSpeed: 30,         // px/sec
+      baseSpeed: 25,         // px/sec
       radius: 13,
       spawnIntervalStart: 0.6, // seconds between spawns at run start
       spawnIntervalMin: 0.05,
@@ -39,14 +39,14 @@
       hpMult: 1.30,
       speedMult: 1.30,
     },
-    milestones: [15, 30, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
+    milestones: [15, 30, 80, 100, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
     // impossibly far apart while still growing:
     milestoneGapGrowth: 1.22,
     // passive (turret/teammate) milestones — a separate track from weapon
     // upgrades. If a kill count hits both a weapon and a passive milestone,
     // the weapon screen is shown first, then the passive screen.
-    passiveMilestones: [35, 75, 120, 200, 300, 400, 700, 1100, 1600],
+    passiveMilestones: [ 75, 120, 220, 300, 400, 700, 1100, 1600],
     passiveMilestoneGapGrowth: 1.3,
     passive: {
       maxTurrets: 2,
@@ -92,22 +92,22 @@
       {
         id: 'napalm', name: 'Napalm', category: 'incendiary', targeted: false,
         desc: 'Carpet-bombs the whole screen for 2s — light burn that lingers on everyone hit',
-        coverDuration: 2, hitDamage: 4, burnDps: 3, burnDuration: 6, cooldownKills: 18,
+        coverDuration: 2, hitDamage: 4, burnDps: 3, burnDuration: 6, cooldownKills: 40,
       },
       {
         id: 'xFlamethrower', name: 'X-Flamethrower', category: 'incendiary', targeted: true,
         desc: 'Tap a point — burns a vertical line (full screen height) for a few seconds',
-        halfWidth: 18, dps: 14, duration: 3, cooldownKills: 14,
+        halfWidth: 30, dps: 14, duration: 3, cooldownKills: 30,
       },
       {
         id: 'yFlamethrower', name: 'Y-Flamethrower', category: 'incendiary', targeted: true,
         desc: 'Tap a point — burns a horizontal line (full screen width) for a few seconds',
-        halfWidth: 18, dps: 14, duration: 3, cooldownKills: 14,
+        halfWidth: 30, dps: 14, duration: 3, cooldownKills: 14,
       },
       {
         id: 'freeze', name: 'Freeze', category: 'utility', targeted: false,
         desc: 'Stops spawning and freezes zombies in place — does not stop damage-line drain',
-        duration: 3, cooldownKills: 30,
+        duration: 5, cooldownKills: 30,
       },
       {
         id: 'oil', name: 'Oil', category: 'utility', targeted: true,
@@ -117,7 +117,7 @@
       {
         id: 'magnetize', name: 'Magnetize', category: 'utility', targeted: true,
         desc: 'Tap a point — pulls nearby zombies together for a second',
-        radius: 90, pullDuration: 1, cooldownKills: 10,
+        radius: 120, pullDuration: 1, cooldownKills: 20,
       },
       {
         id: 'shockwave', name: 'Shockwave', category: 'utility', targeted: false,
