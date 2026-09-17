@@ -22,8 +22,8 @@
       baseHp: 20,
       baseSpeed: 60,         // px/sec
       radius: 13,
-      spawnIntervalStart: 0.50, // seconds between spawns at run start
-      spawnIntervalMin: 0.20,
+      spawnIntervalStart: 0.2, // seconds between spawns at run start
+      spawnIntervalMin: 0.05,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
