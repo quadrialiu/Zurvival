@@ -16,11 +16,11 @@
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 2,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 1,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
-      baseSpeed: 30,         // px/sec
+      baseSpeed: 60,         // px/sec
       radius: 13,
       spawnIntervalStart: 1.50, // seconds between spawns at run start
       spawnIntervalMin: 0.30,
@@ -36,8 +36,8 @@
       spread: 0.12,          // radians between multiple projectiles
     },
     enemyScalingPerMilestone: {
-      hpMult: 1.20,
-      speedMult: 1.10,
+      hpMult: 1.30,
+      speedMult: 1.40,
     },
     milestones: [15, 30, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
