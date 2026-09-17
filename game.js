@@ -19,7 +19,7 @@
       dpsPerEnemy: 0.1,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
-      baseHp: 20,
+      baseHp: 10,
       baseSpeed: 30,         // px/sec
       radius: 13,
       spawnIntervalStart: 0.4, // seconds between spawns at run start
