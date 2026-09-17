@@ -20,14 +20,14 @@
     },
     zombie: {
       baseHp: 20,
-      baseSpeed: 40,         // px/sec
+      baseSpeed: 30,         // px/sec
       radius: 13,
       spawnIntervalStart: 1.50, // seconds between spawns at run start
       spawnIntervalMin: 0.30,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
-      damage: 10,
+      damage: 15,
       fireRate: 2,           // shots per second
       projectileSpeed: 430,
       projectileCount: 1,
@@ -36,10 +36,10 @@
       spread: 0.12,          // radians between multiple projectiles
     },
     enemyScalingPerMilestone: {
-      hpMult: 1.30,
+      hpMult: 1.20,
       speedMult: 1.10,
     },
-    milestones: [20, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
+    milestones: [15, 30, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
     // impossibly far apart while still growing:
     milestoneGapGrowth: 1.22,
