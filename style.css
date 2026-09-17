@@ -46,6 +46,75 @@ html, body {
   display: block;
 }
 
+/* ---------- Ability bar ---------- */
+
+.ability-bar {
+  position: absolute;
+  top: 78px; /* sits just below the HUD row */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 8;
+  pointer-events: none; /* the wrapper is a layout shell; boxes opt back in below */
+}
+
+.ability-bar-right {
+  right: 12px;
+  align-items: flex-end;
+}
+
+.ability-bar-left {
+  left: 12px;
+  align-items: flex-start;
+}
+
+.ability-box {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ability-box .ability-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0%;
+  background: rgba(109, 255, 109, 0.25);
+  transition: height 0.1s linear;
+}
+
+.ability-box .ability-name {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-align: center;
+  color: var(--ink);
+  padding: 4px 3px;
+  line-height: 1.2;
+}
+
+.ability-box.not-ready {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ability-box.targeting {
+  border-color: var(--toxic);
+  box-shadow: 0 0 0 2px rgba(109, 255, 109, 0.4);
+}
+
 /* ---------- HUD ---------- */
 
 #hud {

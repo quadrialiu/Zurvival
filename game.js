@@ -65,6 +65,15 @@
         fireRateMult: 1,      // steady pace, matches base weapon fire rate
       },
     },
+    explosives: {
+      tiers: [
+        { id: 'grenade',   name: 'Grenade',          desc: 'Small blast at a tapped point',                        radius: 55,  damage: 45,  cooldownKills: 12 },
+        { id: 'missile',   name: 'Missile',          desc: 'Bigger blast, more damage',                             radius: 85,  damage: 80,  cooldownKills: 16 },
+        { id: 'artillery', name: 'Artillery Strike', desc: 'Tap 3 points — each takes a smaller strike',            radius: 50,  damage: 55,  strikes: 3, cooldownKills: 20 },
+        { id: 'nuke',      name: 'Tactical Nuke',    desc: 'Huge blast, leaves a lingering radiation zone',         radius: 150, damage: 180, cooldownKills: 28, radiation: { duration: 4, dps: 12, radiusMult: 0.6 } },
+        { id: 'orbital',   name: 'Orbital Cannon',   desc: 'The strongest strike available',                        radius: 130, damage: 260, cooldownKills: 36 },
+      ],
+    },
   };
 
   const UPGRADE_POOL = [
@@ -167,6 +176,11 @@
       enemyHpMult: 1,
       enemySpeedMult: 1,
       debugSpawnInterval: null, // cheat override; null = normal kill-based ramp
+      explosiveTierIndex: -1,   // -1 = not owned yet; index into CONFIG.explosives.tiers
+      explosiveKillsSinceUse: 0,
+      hazards: [],              // lingering AoE zones: {x,y,radius,dps,timeLeft}
+      explosionsFx: [],         // brief visual flashes: {x,y,radius,t}
+      targeting: null,          // { kind, tier, pointsNeeded, points:[] } while awaiting tap(s)
       lastTime: 0,
     };
   }
@@ -321,10 +335,6 @@
 
   function summonPassive(type) {
     const typeCfg = CONFIG.passive[type];
-    // own weapon-stat object, seeded fresh from the base config — NOT from
-    // the player's currently-upgraded stats, and not shared with the
-    // player's weapon object, so later weapon upgrades apply only to
-    // units that already exist at pick-time.
     const weapon = { ...CONFIG.weapon };
     weapon.damage *= typeCfg.damageMult;
     weapon.fireRate *= typeCfg.fireRateMult;
@@ -428,6 +438,176 @@
   }
 
   // ---------------------------------------------------------------
+  // Explosives (tap-then-tap-location abilities)
+  // ---------------------------------------------------------------
+
+  function acquireExplosive(tier) {
+    state.explosiveTierIndex = CONFIG.explosives.tiers.indexOf(tier);
+    state.explosiveKillsSinceUse = tier.cooldownKills; // ready immediately on pickup
+    ensureExplosiveBox();
+  }
+
+  function killZombiesWithZeroHp() {
+    for (let i = state.zombies.length - 1; i >= 0; i--) {
+      if (state.zombies[i].hp <= 0) killZombie(state.zombies[i]);
+    }
+  }
+
+  function explodeAt(x, y, tier) {
+    for (const zb of state.zombies) {
+      const dx = zb.x - x, dy = zb.y - y;
+      if (dx * dx + dy * dy <= tier.radius * tier.radius) {
+        zb.hp -= tier.damage;
+      }
+    }
+    killZombiesWithZeroHp();
+
+    state.explosionsFx.push({ x, y, radius: tier.radius, t: 0 });
+
+    if (tier.radiation) {
+      state.hazards.push({
+        x, y,
+        radius: tier.radius * tier.radiation.radiusMult,
+        dps: tier.radiation.dps,
+        timeLeft: tier.radiation.duration,
+      });
+    }
+  }
+
+  function resolveTargeting(t) {
+    if (t.kind === 'explosive') {
+      for (const pt of t.points) explodeAt(pt.x, pt.y, t.tier);
+      state.explosiveKillsSinceUse = 0;
+    }
+  }
+
+  function onCanvasTap(e) {
+    if (!state || !state.running || !state.targeting) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const t = state.targeting;
+    t.points.push({ x, y });
+    if (t.points.length >= t.pointsNeeded) {
+      resolveTargeting(t);
+      state.targeting = null;
+    }
+  }
+  canvas.addEventListener('pointerdown', onCanvasTap);
+
+  function updateHazards(dt) {
+    for (let i = state.hazards.length - 1; i >= 0; i--) {
+      const hz = state.hazards[i];
+      hz.timeLeft -= dt;
+      for (const zb of state.zombies) {
+        const dx = zb.x - hz.x, dy = zb.y - hz.y;
+        if (dx * dx + dy * dy <= hz.radius * hz.radius) {
+          zb.hp -= hz.dps * dt;
+        }
+      }
+      if (hz.timeLeft <= 0) state.hazards.splice(i, 1);
+    }
+    killZombiesWithZeroHp();
+  }
+
+  function updateExplosionsFx(dt) {
+    for (let i = state.explosionsFx.length - 1; i >= 0; i--) {
+      const fx = state.explosionsFx[i];
+      fx.t += dt;
+      if (fx.t >= 0.35) state.explosionsFx.splice(i, 1);
+    }
+  }
+
+  function renderHazards() {
+    for (const hz of state.hazards) {
+      ctx.beginPath();
+      ctx.arc(hz.x, hz.y, hz.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 140, 60, 0.18)';
+      ctx.fill();
+    }
+  }
+
+  function renderExplosionsFx() {
+    const life = 0.35;
+    for (const fx of state.explosionsFx) {
+      const p = Math.min(1, fx.t / life);
+      ctx.beginPath();
+      ctx.arc(fx.x, fx.y, fx.radius * (0.4 + 0.6 * p), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 200, 90, ${0.5 * (1 - p)})`;
+      ctx.fill();
+    }
+  }
+
+  function renderTargeting() {
+    if (!state.targeting) return;
+    for (const pt of state.targeting.points) {
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(109,255,109,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Ability bar UI (right side — Explosives; left side reserved for
+  // future Utility abilities)
+  // ---------------------------------------------------------------
+
+  const abilityUI = { explosive: null };
+
+  function ensureExplosiveBox() {
+    if (abilityUI.explosive) return abilityUI.explosive;
+    const container = document.getElementById('ability-bar-right');
+    if (!container) return null;
+    const box = document.createElement('div');
+    box.className = 'ability-box';
+    const fill = document.createElement('div');
+    fill.className = 'ability-fill';
+    const name = document.createElement('div');
+    name.className = 'ability-name';
+    box.append(fill, name);
+    box.addEventListener('pointerdown', onExplosiveBoxTap);
+    container.appendChild(box);
+    abilityUI.explosive = { box, fill, name };
+    return abilityUI.explosive;
+  }
+
+  function onExplosiveBoxTap(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!state || !state.running) return;
+    const tier = currentExplosiveTier();
+    if (!tier) return;
+    if (state.targeting && state.targeting.kind === 'explosive') {
+      state.targeting = null; // tapping the icon again cancels targeting
+      return;
+    }
+    const ready = state.explosiveKillsSinceUse >= tier.cooldownKills;
+    if (!ready) return;
+    state.targeting = { kind: 'explosive', tier, pointsNeeded: tier.strikes || 1, points: [] };
+  }
+
+  function updateAbilityUI() {
+    const ref = abilityUI.explosive;
+    const tier = currentExplosiveTier();
+    if (!ref || !tier) return;
+    ref.name.textContent = tier.name;
+    const pct = Math.min(1, state.explosiveKillsSinceUse / tier.cooldownKills) * 100;
+    ref.fill.style.height = pct + '%';
+    ref.box.classList.toggle('not-ready', pct < 100);
+    ref.box.classList.toggle('targeting', !!(state.targeting && state.targeting.kind === 'explosive'));
+  }
+
+  function resetAbilityUI() {
+    const right = document.getElementById('ability-bar-right');
+    const left = document.getElementById('ability-bar-left');
+    if (right) right.innerHTML = '';
+    if (left) left.innerHTML = '';
+    abilityUI.explosive = null;
+  }
+
+  // ---------------------------------------------------------------
   // Update
   // ---------------------------------------------------------------
 
@@ -437,17 +617,16 @@
   state.hp = Math.min(CONFIG.player.startHp, state.hp + CONFIG.player.lifestealPerKill);
   killCountEl.textContent = state.kills;
   killCountEl.classList.remove('pop');
-  // restart the animation
   void killCountEl.offsetWidth;
   killCountEl.classList.add('pop');
+  if (state.explosiveTierIndex >= 0) {
+    const tier = CONFIG.explosives.tiers[state.explosiveTierIndex];
+    state.explosiveKillsSinceUse = Math.min(tier.cooldownKills, state.explosiveKillsSinceUse + 1);
+  }
   checkMilestones();
 }
 
 
-  // Checks weapon then passive milestones, chaining screens as needed.
-  // Safe to call both mid-run (state.running true — does nothing if no
-  // milestone is due) and after a screen closes or a cheat jump (running
-  // false — resumes the loop once nothing further is due).
   function checkMilestones() {
     const weaponTarget = nextMilestoneKills(state.milestoneIndex);
     if (state.kills >= weaponTarget) {
@@ -457,13 +636,12 @@
     }
     const passiveTarget = nextPassiveMilestoneKills(state.passiveMilestoneIndex);
     if (state.kills >= passiveTarget) {
-      const options = pickPassiveOptions();
+      const options = pickSharedOptions(3);
       if (options.length > 0) {
         state.running = false;
-        showPassiveScreen(passiveTarget, options);
+        showSharedPickScreen(passiveTarget, options);
         return;
       }
-      // both caps full — nothing to offer, skip this milestone and keep checking
       state.passiveMilestoneIndex += 1;
       checkMilestones();
       return;
@@ -483,15 +661,12 @@
     const dmgLineY = damageLineY();
     const barricadeY = barricadeLineY();
 
-    // spawn
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0) {
       spawnZombie();
       state.spawnTimer = currentSpawnInterval();
     }
 
-    // fire — lead the shot based on the target's *current* vertical speed
-    // (0 once it has already piled up at the barricade)
     state.fireTimer -= dt;
     if (state.fireTimer <= 0 && state.zombies.length > 0) {
       const target = findNearestZombie(from);
@@ -503,8 +678,9 @@
     }
 
     updatePassives(dt);
+    updateHazards(dt);
+    updateExplosionsFx(dt);
 
-    // move zombies (stop dead at the barricade) + damage-line drain
     let dpsThisFrame = 0;
     for (const zb of state.zombies) {
       if (zb.y < barricadeY) {
@@ -517,7 +693,6 @@
       state.hp = Math.max(0, state.hp - dpsThisFrame * dt);
     }
 
-    // move bullets + collisions
     for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
       const b = state.bullets[bi];
       b.x += b.vx * dt;
@@ -546,7 +721,6 @@
       }
     }
 
-    // HUD
     hpValue.textContent = Math.ceil(state.hp);
     hpFill.style.width = `${Math.max(0, (state.hp / CONFIG.player.startHp) * 100)}%`;
 
@@ -563,7 +737,6 @@
   function render() {
     ctx.clearRect(0, 0, W, H);
 
-    // damage line
     const dmgLineY = damageLineY();
     ctx.strokeStyle = 'rgba(255, 59, 59, 0.55)';
     ctx.lineWidth = 2;
@@ -574,7 +747,6 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // barricade line
     const barricadeY = barricadeLineY();
     ctx.strokeStyle = 'rgba(255, 176, 66, 0.75)';
     ctx.lineWidth = 3;
@@ -583,7 +755,6 @@
     ctx.lineTo(W, barricadeY);
     ctx.stroke();
 
-    // zombies
     for (const zb of state.zombies) {
       const t = zb.hp / zb.maxHp;
       ctx.beginPath();
@@ -592,7 +763,6 @@
       ctx.fill();
     }
 
-    // bullets
     ctx.fillStyle = '#eafff0';
     for (const b of state.bullets) {
       ctx.beginPath();
@@ -601,8 +771,11 @@
     }
 
     renderPassives();
+    renderHazards();
+    renderExplosionsFx();
+    renderTargeting();
+    updateAbilityUI();
 
-    // player
     const p = playerPos();
     ctx.beginPath();
     ctx.arc(p.x, p.y, CONFIG.player.radius, 0, Math.PI * 2);
@@ -620,15 +793,13 @@
   function loop(ts) {
     if (!state.running) return;
     if (!state.lastTime) state.lastTime = ts;
-    const dt = Math.min(0.05, (ts - state.lastTime) / 1000); // clamp for tab-switch jumps
+    const dt = Math.min(0.05, (ts - state.lastTime) / 1000);
     state.lastTime = ts;
 
     if (W > 1 && H > 1) {
       update(dt);
       render();
     } else {
-      // field hasn't laid out yet — re-measure and wait a frame rather
-      // than simulating against a zero-sized field
       resizeCanvas();
     }
 
@@ -645,7 +816,7 @@
     gameoverScreen.hidden = true;
   }
 
-  function renderOptionScreen(reachedAt, options, onChoose) {
+  function renderOptionScreen(reachedAt, options, onChoose, opts = {}) {
     hideAllScreens();
     upgradeScreen.hidden = false;
     upgradeKillCount.textContent = reachedAt;
@@ -657,6 +828,13 @@
       btn.innerHTML = `<span class="opt-name">${opt.name}</span><span class="opt-desc">${opt.desc}</span>`;
       btn.addEventListener('click', () => onChoose(opt));
       upgradeOptionsEl.appendChild(btn);
+    }
+    if (opts.allowSkip) {
+      const skipBtn = document.createElement('button');
+      skipBtn.className = 'upgrade-option';
+      skipBtn.innerHTML = `<span class="opt-name">Skip</span><span class="opt-desc">Take nothing this round</span>`;
+      skipBtn.addEventListener('click', skipPick);
+      upgradeOptionsEl.appendChild(skipBtn);
     }
   }
 
@@ -675,33 +853,74 @@
   }
 
   function chooseUpgrade(opt) {
-    // applies to the player's weapon AND every passive that already
-    // exists — a passive summoned later starts fresh at base values,
-    // per the "seeded at base values at summon time" rule.
     opt.apply(state.weapon);
     for (const u of state.passives) opt.apply(u.weapon);
 
-    // scale enemies up, then move to the next weapon milestone target
     state.enemyHpMult *= CONFIG.enemyScalingPerMilestone.hpMult;
     state.enemySpeedMult *= CONFIG.enemyScalingPerMilestone.speedMult;
     state.milestoneIndex += 1;
 
     milestoneValueEl.textContent = nextMilestoneKills(state.milestoneIndex);
 
-    // a passive milestone might have landed on this same kill count
     checkMilestones();
   }
 
-  function pickPassiveOptions() {
-    return PASSIVE_POOL.filter(opt => opt.canOffer());
+  function getNextExplosiveTier() {
+    const tiers = CONFIG.explosives.tiers;
+    const nextIdx = state.explosiveTierIndex + 1;
+    return nextIdx < tiers.length ? tiers[nextIdx] : null;
   }
 
-  function showPassiveScreen(reachedAt, options) {
-    renderOptionScreen(reachedAt, options, choosePassive);
+  function currentExplosiveTier() {
+    return state.explosiveTierIndex >= 0 ? CONFIG.explosives.tiers[state.explosiveTierIndex] : null;
   }
 
-  function choosePassive(opt) {
-    summonPassive(opt.id);
+  // Everything that can currently be offered on the passive/ability screen:
+  // built-in passives (turret/teammate) plus whichever Explosives tier is
+  // next in line, if any.
+  function getSharedPoolCandidates() {
+    const list = [];
+    for (const opt of PASSIVE_POOL) {
+      if (opt.canOffer()) list.push(opt);
+    }
+    const nextTier = getNextExplosiveTier();
+    if (nextTier) {
+      list.push({
+        id: 'explosive-' + nextTier.id,
+        name: nextTier.name,
+        desc: nextTier.desc,
+        kind: 'explosive',
+        tier: nextTier,
+      });
+    }
+    return list;
+  }
+
+  function pickSharedOptions(n) {
+    const pool = getSharedPoolCandidates();
+    const picked = [];
+    while (picked.length < n && pool.length > 0) {
+      const i = Math.floor(Math.random() * pool.length);
+      picked.push(pool.splice(i, 1)[0]);
+    }
+    return picked;
+  }
+
+  function showSharedPickScreen(reachedAt, options) {
+    renderOptionScreen(reachedAt, options, choosePick, { allowSkip: true });
+  }
+
+  function choosePick(opt) {
+    if (opt.kind === 'explosive') {
+      acquireExplosive(opt.tier);
+    } else {
+      summonPassive(opt.id);
+    }
+    state.passiveMilestoneIndex += 1;
+    checkMilestones();
+  }
+
+  function skipPick() {
     state.passiveMilestoneIndex += 1;
     checkMilestones();
   }
@@ -737,7 +956,8 @@
 
   function startRun() {
     resizeCanvas();
-    resizeCanvas(); // second pass in case the first ran before layout settled
+    resizeCanvas();
+    resetAbilityUI();
     state = freshState();
     state.spawnTimer = currentSpawnInterval();
     state.fireTimer = 1 / state.weapon.fireRate;
