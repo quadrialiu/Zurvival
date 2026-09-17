@@ -16,11 +16,11 @@
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 0.2,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 0.1,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
-      baseSpeed: 60,         // px/sec
+      baseSpeed: 30,         // px/sec
       radius: 13,
       spawnIntervalStart: 0.4, // seconds between spawns at run start
       spawnIntervalMin: 0.05,
