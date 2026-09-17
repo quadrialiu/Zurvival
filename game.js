@@ -37,7 +37,7 @@
     },
     enemyScalingPerMilestone: {
       hpMult: 1.30,
-      speedMult: 1.30,
+      speedMult: 1.15,
     },
     milestones: [15, 30, 80, 100, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
