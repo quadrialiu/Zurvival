@@ -11,7 +11,7 @@
       startHp: 100,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
-    lifestealPerKill: 2,   // HP restored per zombie killed
+    lifestealPerKill: 3,   // HP restored per zombie killed
     },
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
@@ -46,7 +46,7 @@
     // passive (turret/teammate) milestones — a separate track from weapon
     // upgrades. If a kill count hits both a weapon and a passive milestone,
     // the weapon screen is shown first, then the passive screen.
-    passiveMilestones: [ 22, 26, 29, 36, 45, 50 75, 200, 400, 700, 1100, 1600],
+    passiveMilestones: [ 22, 26, 29, 36, 45, 50, 55, 75, 200, 400, 700, 1100, 1600],
     passiveMilestoneGapGrowth: 1.3,
     passive: {
       maxTurrets: 2,
