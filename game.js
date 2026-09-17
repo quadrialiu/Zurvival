@@ -11,18 +11,18 @@
       startHp: 100,
       radius: 15,
       bottomOffset: 78,      // px up from the bottom of the field
-    lifestealPerKill: 3,   // HP restored per zombie killed
+    lifestealPerKill: 2,   // HP restored per zombie killed
     },
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 1,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 0.2,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
       baseSpeed: 60,         // px/sec
       radius: 13,
-      spawnIntervalStart: 0.2, // seconds between spawns at run start
+      spawnIntervalStart: 0.4, // seconds between spawns at run start
       spawnIntervalMin: 0.05,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
