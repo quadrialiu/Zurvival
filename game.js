@@ -22,8 +22,8 @@
       baseHp: 20,
       baseSpeed: 70,         // px/sec
       radius: 13,
-      spawnIntervalStart: 0.7, // seconds between spawns at run start
-      spawnIntervalMin: 0.90,
+      spawnIntervalStart: 0.5, // seconds between spawns at run start
+      spawnIntervalMin: 0.2,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
@@ -46,7 +46,7 @@
     // passive (turret/teammate) milestones — a separate track from weapon
     // upgrades. If a kill count hits both a weapon and a passive milestone,
     // the weapon screen is shown first, then the passive screen.
-    passiveMilestones: [ 22, 26, 29, 36, 45, 50, 55, 60, 75, 200, 400, 700, 1100, 1600],
+    passiveMilestones: [ 65, 120, 200, 300,  400, 700, 1100, 1600],
     passiveMilestoneGapGrowth: 1.3,
     passive: {
       maxTurrets: 2,
@@ -70,8 +70,8 @@
         { id: 'grenade',   name: 'Grenade',          desc: 'Small blast at a tapped point',                        radius: 55,  damage: 45,  cooldownKills: 12 },
         { id: 'missile',   name: 'Missile',          desc: 'Bigger blast, more damage',                             radius: 85,  damage: 80,  cooldownKills: 16 },
         { id: 'artillery', name: 'Artillery Strike', desc: 'Tap 3 points — each takes a smaller strike',            radius: 50,  damage: 55,  strikes: 3, cooldownKills: 20 },
-        { id: 'nuke',      name: 'Tactical Nuke',    desc: 'Huge blast, leaves a lingering radiation zone',         radius: 150, damage: 180, cooldownKills: 28, radiation: { duration: 4, dps: 12, radiusMult: 0.6 } },
-        { id: 'orbital',   name: 'Orbital Cannon',   desc: 'The strongest strike available',                        radius: 130, damage: 260, cooldownKills: 36 },
+        { id: 'nuke',      name: 'Tactical Nuke',    desc: 'Huge blast, leaves a lingering radiation zone',         radius: 150, damage: 180, cooldownKills: 30, radiation: { duration: 4, dps: 12, radiusMult: 0.6 } },
+        { id: 'orbital',   name: 'Orbital Cannon',   desc: 'The strongest strike available',                        radius: 130, damage: 260, cooldownKills: 50 },
       ],
     },
   };
