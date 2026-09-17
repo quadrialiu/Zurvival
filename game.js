@@ -22,7 +22,7 @@
       baseHp: 20,
       baseSpeed: 70,         // px/sec
       radius: 13,
-      spawnIntervalStart: 1.40, // seconds between spawns at run start
+      spawnIntervalStart: 0.7, // seconds between spawns at run start
       spawnIntervalMin: 0.90,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
@@ -46,7 +46,7 @@
     // passive (turret/teammate) milestones — a separate track from weapon
     // upgrades. If a kill count hits both a weapon and a passive milestone,
     // the weapon screen is shown first, then the passive screen.
-    passiveMilestones: [ 22, 26, 29, 75, 200, 400, 700, 1100, 1600],
+    passiveMilestones: [ 22, 26, 29, 36, 45, 50 75, 200, 400, 700, 1100, 1600],
     passiveMilestoneGapGrowth: 1.3,
     passive: {
       maxTurrets: 2,
