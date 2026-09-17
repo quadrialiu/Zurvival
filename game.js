@@ -16,18 +16,18 @@
     lines: {
       damageLineFromTop: 0.45, // quarter of the field — enemies past this drain HP
       barricadeGapAbovePlayer: 36, // px above the player — enemies physically stop here
-      dpsPerEnemy: 1,          // HP/sec drained per enemy currently past the damage line
+      dpsPerEnemy: 2,          // HP/sec drained per enemy currently past the damage line
     },
     zombie: {
       baseHp: 20,
       baseSpeed: 70,         // px/sec
       radius: 13,
-      spawnIntervalStart: 0.5, // seconds between spawns at run start
-      spawnIntervalMin: 0.2,
+      spawnIntervalStart: 1.40, // seconds between spawns at run start
+      spawnIntervalMin: 0.90,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
     },
     weapon: {
-      damage: 10,
+      damage: 20,
       fireRate: 2,           // shots per second
       projectileSpeed: 430,
       projectileCount: 1,
@@ -37,7 +37,7 @@
     },
     enemyScalingPerMilestone: {
       hpMult: 1.50,
-      speedMult: 1.50,
+      speedMult: 1.20,
     },
     milestones: [20, 50, 100, 140, 190, 250, 320, 400, 550, 750, 1000, 1300, 1650, 2050],
     // once the fixed list runs out, keep spacing runs from getting
@@ -46,7 +46,7 @@
     // passive (turret/teammate) milestones — a separate track from weapon
     // upgrades. If a kill count hits both a weapon and a passive milestone,
     // the weapon screen is shown first, then the passive screen.
-    passiveMilestones: [ 65, 120, 200, 300,  400, 700, 1100, 1600],
+    passiveMilestones: [75, 200, 400, 700, 1100, 1600],
     passiveMilestoneGapGrowth: 1.3,
     passive: {
       maxTurrets: 2,
@@ -70,10 +70,66 @@
         { id: 'grenade',   name: 'Grenade',          desc: 'Small blast at a tapped point',                        radius: 55,  damage: 45,  cooldownKills: 12 },
         { id: 'missile',   name: 'Missile',          desc: 'Bigger blast, more damage',                             radius: 85,  damage: 80,  cooldownKills: 16 },
         { id: 'artillery', name: 'Artillery Strike', desc: 'Tap 3 points — each takes a smaller strike',            radius: 50,  damage: 55,  strikes: 3, cooldownKills: 20 },
-        { id: 'nuke',      name: 'Tactical Nuke',    desc: 'Huge blast, leaves a lingering radiation zone',         radius: 150, damage: 180, cooldownKills: 30, radiation: { duration: 4, dps: 12, radiusMult: 0.6 } },
-        { id: 'orbital',   name: 'Orbital Cannon',   desc: 'The strongest strike available',                        radius: 130, damage: 260, cooldownKills: 50 },
+        { id: 'nuke',      name: 'Tactical Nuke',    desc: 'Huge blast, leaves a lingering radiation zone',         radius: 150, damage: 180, cooldownKills: 28, radiation: { duration: 4, dps: 12, radiusMult: 0.6 } },
+        { id: 'orbital',   name: 'Orbital Cannon',   desc: 'The strongest strike available',                        radius: 130, damage: 260, cooldownKills: 36 },
       ],
     },
+    // Incendiary/Utility abilities — all share one pool/pick-screen with
+    // passives and Explosives. Category caps + manual-swap-when-full logic
+    // live in CONFIG.abilityCategories; each ability's own numbers are
+    // placeholders for you to tune.
+    abilityCategories: {
+      incendiary: { cap: 3 },
+      utility: { cap: 4 },
+    },
+    abilities: [
+      {
+        id: 'molotov', name: 'Molotov', category: 'incendiary', targeted: true,
+        desc: 'Tap a point — small area burns enemies caught in it for a few seconds',
+        radius: 55, hitDamage: 10, burnDps: 6, burnDuration: 3, oiledBurnMult: 1.6,
+        blastDamage: 60, cooldownKills: 10,
+      },
+      {
+        id: 'napalm', name: 'Napalm', category: 'incendiary', targeted: false,
+        desc: 'Carpet-bombs the whole screen for 2s — light burn that lingers on everyone hit',
+        coverDuration: 2, hitDamage: 4, burnDps: 3, burnDuration: 6, cooldownKills: 18,
+      },
+      {
+        id: 'xFlamethrower', name: 'X-Flamethrower', category: 'incendiary', targeted: true,
+        desc: 'Tap a point — burns a vertical line (full screen height) for a few seconds',
+        halfWidth: 18, dps: 14, duration: 3, cooldownKills: 14,
+      },
+      {
+        id: 'yFlamethrower', name: 'Y-Flamethrower', category: 'incendiary', targeted: true,
+        desc: 'Tap a point — burns a horizontal line (full screen width) for a few seconds',
+        halfWidth: 18, dps: 14, duration: 3, cooldownKills: 14,
+      },
+      {
+        id: 'freeze', name: 'Freeze', category: 'utility', targeted: false,
+        desc: 'Stops spawning and freezes zombies in place — does not stop damage-line drain',
+        duration: 3, cooldownKills: 30,
+      },
+      {
+        id: 'oil', name: 'Oil', category: 'utility', targeted: true,
+        desc: 'Tap a point — a puddle that permanently slows any zombie that touches it',
+        radius: 50, puddleDuration: 3, slowMult: 0.45, cooldownKills: 12,
+      },
+      {
+        id: 'magnetize', name: 'Magnetize', category: 'utility', targeted: true,
+        desc: 'Tap a point — pulls nearby zombies together for a second',
+        radius: 90, pullDuration: 1, cooldownKills: 10,
+      },
+      {
+        id: 'shockwave', name: 'Shockwave', category: 'utility', targeted: false,
+        desc: 'Pushes every zombie back above the damage line',
+        cooldownKills: 16,
+      },
+      {
+        id: 'overclock', name: 'Overclock', category: 'utility', targeted: false,
+        desc: 'Temporarily boosts your own fire rate and projectile speed',
+        duration: 5, fireRateMult: 1.6, projectileSpeedMult: 1.3, cooldownKills: 22,
+      },
+    ],
   };
 
   const UPGRADE_POOL = [
@@ -119,7 +175,9 @@
   const startBestValue = document.getElementById('start-best-value');
 
   const upgradeScreen = document.getElementById('upgrade-screen');
+  const upgradeKicker = document.getElementById('upgrade-kicker');
   const upgradeKillCount = document.getElementById('upgrade-kill-count');
+  const upgradeTag = document.getElementById('upgrade-tag');
   const upgradeOptionsEl = document.getElementById('upgrade-options');
 
   const gameoverScreen = document.getElementById('gameover-screen');
@@ -178,9 +236,17 @@
       debugSpawnInterval: null, // cheat override; null = normal kill-based ramp
       explosiveTierIndex: -1,   // -1 = not owned yet; index into CONFIG.explosives.tiers
       explosiveKillsSinceUse: 0,
-      hazards: [],              // lingering AoE zones: {x,y,radius,dps,timeLeft}
-      explosionsFx: [],         // brief visual flashes: {x,y,radius,t}
-      targeting: null,          // { kind, tier, pointsNeeded, points:[] } while awaiting tap(s)
+      abilities: {},            // owned Incendiary/Utility abilities: { [id]: { def, killsSinceUse } }
+      time: 0,                  // real-time clock (seconds), used for ability durations
+      napalmDef: null,
+      napalmActiveUntil: 0,
+      napalmActivationId: 0,
+      freezeActiveUntil: 0,
+      overclockUntil: 0,
+      overclockSnapshot: null,
+      hazards: [],              // lingering AoE zones: {shape, x,y,radius | axis,coord,halfWidth, dps, timeLeft, tag?, slowMult?}
+      explosionsFx: [],         // brief visual flashes: {x,y,radius,t,color?}
+      targeting: null,          // { kind, def/tier, pointsNeeded, points:[] } while awaiting tap(s)
       lastTime: 0,
     };
   }
@@ -259,6 +325,10 @@
       maxHp: z.baseHp * state.enemyHpMult,
       speed: z.baseSpeed * state.enemySpeedMult,
       radius: z.radius,
+      burnDps: 0, burnUntil: 0,          // Molotov/Napalm burn status
+      oiled: false, slowMult: 1,          // Oil's permanent slow
+      magnetUntil: 0, magnetDuration: 0, magnetStart: null, magnetTarget: null, // Magnetize pull
+      napalmTag: -1,                      // last Napalm activation this zombie was hit by
     });
   }
 
@@ -447,6 +517,16 @@
     ensureExplosiveBox();
   }
 
+  function acquireAbility(def) {
+    state.abilities[def.id] = { def, killsSinceUse: def.cooldownKills }; // ready immediately
+    ensureAbilityBox(def);
+  }
+
+  function dropAbility(id) {
+    delete state.abilities[id];
+    removeAbilityBox(id);
+  }
+
   function killZombiesWithZeroHp() {
     for (let i = state.zombies.length - 1; i >= 0; i--) {
       if (state.zombies[i].hp <= 0) killZombie(state.zombies[i]);
@@ -478,6 +558,88 @@
     if (t.kind === 'explosive') {
       for (const pt of t.points) explodeAt(pt.x, pt.y, t.tier);
       state.explosiveKillsSinceUse = 0;
+    } else if (t.kind === 'ability') {
+      resolveAbilityEffect(t.def, t.points[0]);
+      state.abilities[t.def.id].killsSinceUse = 0;
+    }
+  }
+
+  function applyBurn(zb, dps, duration) {
+    const until = state.time + duration;
+    if (until >= zb.burnUntil) {
+      zb.burnDps = dps;
+      zb.burnUntil = until;
+    }
+  }
+
+  // Dispatches a ready ability's effect. `point` is null for tap-only
+  // (non-targeted) abilities.
+  function resolveAbilityEffect(def, point) {
+    switch (def.id) {
+      case 'molotov': {
+        const hits = state.zombies.filter(zb => {
+          const dx = zb.x - point.x, dy = zb.y - point.y;
+          return dx * dx + dy * dy <= def.radius * def.radius;
+        });
+        for (const zb of hits) {
+          zb.hp -= def.hitDamage;
+          applyBurn(zb, def.burnDps, def.burnDuration * (zb.oiled ? def.oiledBurnMult : 1));
+        }
+        // Molotov + Freeze synergy ("Blast"): only while Freeze is active,
+        // and only within Molotov's own (small) radius.
+        if (state.time < state.freezeActiveUntil) {
+          for (const zb of hits) zb.hp -= def.blastDamage;
+        }
+        killZombiesWithZeroHp();
+        state.explosionsFx.push({ x: point.x, y: point.y, radius: def.radius, t: 0, color: '255,120,60' });
+        break;
+      }
+      case 'napalm': {
+        state.napalmDef = def;
+        state.napalmActivationId += 1;
+        state.napalmActiveUntil = state.time + def.coverDuration;
+        break;
+      }
+      case 'xFlamethrower':
+        state.hazards.push({ shape: 'line', axis: 'x', coord: point.x, halfWidth: def.halfWidth, dps: def.dps, timeLeft: def.duration });
+        break;
+      case 'yFlamethrower':
+        state.hazards.push({ shape: 'line', axis: 'y', coord: point.y, halfWidth: def.halfWidth, dps: def.dps, timeLeft: def.duration });
+        break;
+      case 'freeze':
+        state.freezeActiveUntil = state.time + def.duration;
+        break;
+      case 'oil':
+        state.hazards.push({ shape: 'circle', x: point.x, y: point.y, radius: def.radius, dps: 0, timeLeft: def.puddleDuration, tag: 'oiled', slowMult: def.slowMult });
+        break;
+      case 'magnetize': {
+        for (const zb of state.zombies) {
+          const dx = zb.x - point.x, dy = zb.y - point.y;
+          if (dx * dx + dy * dy <= def.radius * def.radius) {
+            zb.magnetStart = { x: zb.x, y: zb.y };
+            zb.magnetTarget = { x: point.x, y: point.y };
+            zb.magnetDuration = def.pullDuration;
+            zb.magnetUntil = state.time + def.pullDuration;
+          }
+        }
+        break;
+      }
+      case 'shockwave': {
+        const lineY = damageLineY();
+        for (const zb of state.zombies) {
+          if (zb.y >= lineY) zb.y = lineY - 1;
+        }
+        break;
+      }
+      case 'overclock': {
+        if (!state.overclockSnapshot) {
+          state.overclockSnapshot = { fireRate: state.weapon.fireRate, projectileSpeed: state.weapon.projectileSpeed };
+        }
+        state.weapon.fireRate = state.overclockSnapshot.fireRate * def.fireRateMult;
+        state.weapon.projectileSpeed = state.overclockSnapshot.projectileSpeed * def.projectileSpeedMult;
+        state.overclockUntil = state.time + def.duration;
+        break;
+      }
     }
   }
 
@@ -495,19 +657,63 @@
   }
   canvas.addEventListener('pointerdown', onCanvasTap);
 
+  function isZombieInHazard(zb, hz) {
+    if (hz.shape === 'line') {
+      const pos = hz.axis === 'x' ? zb.x : zb.y;
+      return Math.abs(pos - hz.coord) <= hz.halfWidth;
+    }
+    const dx = zb.x - hz.x, dy = zb.y - hz.y;
+    return dx * dx + dy * dy <= hz.radius * hz.radius;
+  }
+
   function updateHazards(dt) {
     for (let i = state.hazards.length - 1; i >= 0; i--) {
       const hz = state.hazards[i];
       hz.timeLeft -= dt;
       for (const zb of state.zombies) {
-        const dx = zb.x - hz.x, dy = zb.y - hz.y;
-        if (dx * dx + dy * dy <= hz.radius * hz.radius) {
-          zb.hp -= hz.dps * dt;
+        if (!isZombieInHazard(zb, hz)) continue;
+        if (hz.dps) zb.hp -= hz.dps * dt;
+        if (hz.tag === 'oiled' && !zb.oiled) {
+          zb.oiled = true;
+          zb.slowMult = hz.slowMult;
         }
       }
       if (hz.timeLeft <= 0) state.hazards.splice(i, 1);
     }
     killZombiesWithZeroHp();
+  }
+
+  // Per-frame status ticks that aren't tied to a specific hazard zone:
+  // burn (Molotov/Napalm), Napalm's screen-wide coverage window, Magnetize's
+  // pull, and Overclock's expiry/restore.
+  function updateStatusEffects(dt) {
+    for (const zb of state.zombies) {
+      if (state.time < zb.burnUntil) zb.hp -= zb.burnDps * dt;
+      if (state.time < zb.magnetUntil && zb.magnetTarget) {
+        const p = 1 - (zb.magnetUntil - state.time) / zb.magnetDuration;
+        zb.x = zb.magnetStart.x + (zb.magnetTarget.x - zb.magnetStart.x) * p;
+        zb.y = zb.magnetStart.y + (zb.magnetTarget.y - zb.magnetStart.y) * p;
+      }
+    }
+
+    if (state.napalmDef && state.time < state.napalmActiveUntil) {
+      const def = state.napalmDef;
+      for (const zb of state.zombies) {
+        if (zb.napalmTag !== state.napalmActivationId) {
+          zb.napalmTag = state.napalmActivationId;
+          zb.hp -= def.hitDamage;
+          applyBurn(zb, def.burnDps, def.burnDuration);
+        }
+      }
+    }
+
+    killZombiesWithZeroHp();
+
+    if (state.overclockSnapshot && state.time >= state.overclockUntil) {
+      state.weapon.fireRate = state.overclockSnapshot.fireRate;
+      state.weapon.projectileSpeed = state.overclockSnapshot.projectileSpeed;
+      state.overclockSnapshot = null;
+    }
   }
 
   function updateExplosionsFx(dt) {
@@ -520,9 +726,18 @@
 
   function renderHazards() {
     for (const hz of state.hazards) {
+      if (hz.shape === 'line') {
+        ctx.fillStyle = 'rgba(255, 140, 60, 0.18)';
+        if (hz.axis === 'x') {
+          ctx.fillRect(hz.coord - hz.halfWidth, 0, hz.halfWidth * 2, H);
+        } else {
+          ctx.fillRect(0, hz.coord - hz.halfWidth, W, hz.halfWidth * 2);
+        }
+        continue;
+      }
       ctx.beginPath();
       ctx.arc(hz.x, hz.y, hz.radius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 140, 60, 0.18)';
+      ctx.fillStyle = hz.tag === 'oiled' ? 'rgba(120, 90, 40, 0.35)' : 'rgba(255, 140, 60, 0.18)';
       ctx.fill();
     }
   }
@@ -533,7 +748,7 @@
       const p = Math.min(1, fx.t / life);
       ctx.beginPath();
       ctx.arc(fx.x, fx.y, fx.radius * (0.4 + 0.6 * p), 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 200, 90, ${0.5 * (1 - p)})`;
+      ctx.fillStyle = `rgba(${fx.color || '255, 200, 90'}, ${0.5 * (1 - p)})`;
       ctx.fill();
     }
   }
@@ -555,6 +770,7 @@
   // ---------------------------------------------------------------
 
   const abilityUI = { explosive: null };
+  const abilityBoxes = {}; // id -> {box, fill, name}
 
   function ensureExplosiveBox() {
     if (abilityUI.explosive) return abilityUI.explosive;
@@ -588,15 +804,76 @@
     state.targeting = { kind: 'explosive', tier, pointsNeeded: tier.strikes || 1, points: [] };
   }
 
+  // Incendiary boxes go in the same right-side column (below Explosives);
+  // Utility boxes go in the left-side column.
+  function ensureAbilityBox(def) {
+    if (abilityBoxes[def.id]) return abilityBoxes[def.id];
+    const containerId = def.category === 'utility' ? 'ability-bar-left' : 'ability-bar-right';
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    const box = document.createElement('div');
+    box.className = 'ability-box';
+    const fill = document.createElement('div');
+    fill.className = 'ability-fill';
+    const name = document.createElement('div');
+    name.className = 'ability-name';
+    name.textContent = def.name;
+    box.append(fill, name);
+    box.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onAbilityBoxTap(def);
+    });
+    container.appendChild(box);
+    abilityBoxes[def.id] = { box, fill, name };
+    return abilityBoxes[def.id];
+  }
+
+  function removeAbilityBox(id) {
+    const ref = abilityBoxes[id];
+    if (ref) {
+      ref.box.remove();
+      delete abilityBoxes[id];
+    }
+  }
+
+  function onAbilityBoxTap(def) {
+    if (!state || !state.running) return;
+    const owned = state.abilities[def.id];
+    if (!owned) return;
+    if (state.targeting && state.targeting.kind === 'ability' && state.targeting.def.id === def.id) {
+      state.targeting = null; // tapping the icon again cancels targeting
+      return;
+    }
+    const ready = owned.killsSinceUse >= def.cooldownKills;
+    if (!ready) return;
+    if (def.targeted) {
+      state.targeting = { kind: 'ability', def, pointsNeeded: 1, points: [] };
+    } else {
+      resolveAbilityEffect(def, null);
+      owned.killsSinceUse = 0;
+    }
+  }
+
   function updateAbilityUI() {
     const ref = abilityUI.explosive;
     const tier = currentExplosiveTier();
-    if (!ref || !tier) return;
-    ref.name.textContent = tier.name;
-    const pct = Math.min(1, state.explosiveKillsSinceUse / tier.cooldownKills) * 100;
-    ref.fill.style.height = pct + '%';
-    ref.box.classList.toggle('not-ready', pct < 100);
-    ref.box.classList.toggle('targeting', !!(state.targeting && state.targeting.kind === 'explosive'));
+    if (ref && tier) {
+      ref.name.textContent = tier.name;
+      const pct = Math.min(1, state.explosiveKillsSinceUse / tier.cooldownKills) * 100;
+      ref.fill.style.height = pct + '%';
+      ref.box.classList.toggle('not-ready', pct < 100);
+      ref.box.classList.toggle('targeting', !!(state.targeting && state.targeting.kind === 'explosive'));
+    }
+    for (const id in abilityBoxes) {
+      const owned = state.abilities[id];
+      const boxRef = abilityBoxes[id];
+      if (!owned) continue;
+      const pct = Math.min(1, owned.killsSinceUse / owned.def.cooldownKills) * 100;
+      boxRef.fill.style.height = pct + '%';
+      boxRef.box.classList.toggle('not-ready', pct < 100);
+      boxRef.box.classList.toggle('targeting', !!(state.targeting && state.targeting.kind === 'ability' && state.targeting.def.id === id));
+    }
   }
 
   function resetAbilityUI() {
@@ -605,6 +882,7 @@
     if (right) right.innerHTML = '';
     if (left) left.innerHTML = '';
     abilityUI.explosive = null;
+    for (const id in abilityBoxes) delete abilityBoxes[id];
   }
 
   // ---------------------------------------------------------------
@@ -622,6 +900,10 @@
   if (state.explosiveTierIndex >= 0) {
     const tier = CONFIG.explosives.tiers[state.explosiveTierIndex];
     state.explosiveKillsSinceUse = Math.min(tier.cooldownKills, state.explosiveKillsSinceUse + 1);
+  }
+  for (const id in state.abilities) {
+    const a = state.abilities[id];
+    a.killsSinceUse = Math.min(a.def.cooldownKills, a.killsSinceUse + 1);
   }
   checkMilestones();
 }
@@ -660,10 +942,11 @@
     const from = playerPos();
     const dmgLineY = damageLineY();
     const barricadeY = barricadeLineY();
+    state.time += dt;
 
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0) {
-      spawnZombie();
+      if (state.time >= state.freezeActiveUntil) spawnZombie();
       state.spawnTimer = currentSpawnInterval();
     }
 
@@ -678,13 +961,17 @@
     }
 
     updatePassives(dt);
+    updateStatusEffects(dt);
     updateHazards(dt);
     updateExplosionsFx(dt);
 
+    const frozen = state.time < state.freezeActiveUntil;
     let dpsThisFrame = 0;
     for (const zb of state.zombies) {
-      if (zb.y < barricadeY) {
-        zb.y += zb.speed * dt;
+      if (state.time < zb.magnetUntil) {
+        // position already set by updateStatusEffects this frame
+      } else if (!frozen && zb.y < barricadeY) {
+        zb.y += zb.speed * zb.slowMult * dt;
         if (zb.y > barricadeY) zb.y = barricadeY;
       }
       if (zb.y >= dmgLineY) dpsThisFrame += CONFIG.lines.dpsPerEnemy;
@@ -819,7 +1106,14 @@
   function renderOptionScreen(reachedAt, options, onChoose, opts = {}) {
     hideAllScreens();
     upgradeScreen.hidden = false;
-    upgradeKillCount.textContent = reachedAt;
+    upgradeKicker.textContent = opts.kicker || 'milestone reached';
+    upgradeTag.textContent = opts.tagText || 'choose one upgrade';
+    if (opts.hideKillCount) {
+      upgradeKillCount.parentElement.style.display = 'none';
+    } else {
+      upgradeKillCount.parentElement.style.display = '';
+      upgradeKillCount.textContent = reachedAt;
+    }
 
     upgradeOptionsEl.innerHTML = '';
     for (const opt of options) {
@@ -855,6 +1149,9 @@
   function chooseUpgrade(opt) {
     opt.apply(state.weapon);
     for (const u of state.passives) opt.apply(u.weapon);
+    // Overclock's revert snapshot must track permanent upgrades too, or
+    // ending Overclock would wipe out anything picked while it was active.
+    if (state.overclockSnapshot) opt.apply(state.overclockSnapshot);
 
     state.enemyHpMult *= CONFIG.enemyScalingPerMilestone.hpMult;
     state.enemySpeedMult *= CONFIG.enemyScalingPerMilestone.speedMult;
@@ -875,9 +1172,16 @@
     return state.explosiveTierIndex >= 0 ? CONFIG.explosives.tiers[state.explosiveTierIndex] : null;
   }
 
+  function ownedAbilityIdsInCategory(category) {
+    return Object.keys(state.abilities).filter(id => state.abilities[id].def.category === category);
+  }
+
   // Everything that can currently be offered on the passive/ability screen:
-  // built-in passives (turret/teammate) plus whichever Explosives tier is
-  // next in line, if any.
+  // built-in passives (turret/teammate), whichever Explosives tier is next
+  // in line, and any not-yet-owned Incendiary/Utility ability. Category
+  // caps are enforced at pick-time (see choosePick), not here — an
+  // already-full category still offers its remaining not-yet-owned items,
+  // and picking one triggers a manual drop-choice instead of being blocked.
   function getSharedPoolCandidates() {
     const list = [];
     for (const opt of PASSIVE_POOL) {
@@ -892,6 +1196,17 @@
         kind: 'explosive',
         tier: nextTier,
       });
+    }
+    for (const def of CONFIG.abilities) {
+      if (!state.abilities[def.id]) {
+        list.push({
+          id: 'ability-' + def.id,
+          name: def.name,
+          desc: def.desc,
+          kind: 'ability',
+          def,
+        });
+      }
     }
     return list;
   }
@@ -913,11 +1228,41 @@
   function choosePick(opt) {
     if (opt.kind === 'explosive') {
       acquireExplosive(opt.tier);
+      state.passiveMilestoneIndex += 1;
+      checkMilestones();
+    } else if (opt.kind === 'ability') {
+      const cap = CONFIG.abilityCategories[opt.def.category].cap;
+      const owned = ownedAbilityIdsInCategory(opt.def.category);
+      if (owned.length >= cap) {
+        showDropChoiceScreen(opt.def, owned);
+      } else {
+        acquireAbility(opt.def);
+        state.passiveMilestoneIndex += 1;
+        checkMilestones();
+      }
     } else {
       summonPassive(opt.id);
+      state.passiveMilestoneIndex += 1;
+      checkMilestones();
     }
-    state.passiveMilestoneIndex += 1;
-    checkMilestones();
+  }
+
+  function showDropChoiceScreen(newDef, ownedIds) {
+    const options = ownedIds.map(id => ({
+      id,
+      name: state.abilities[id].def.name,
+      desc: 'Drop this to make room for ' + newDef.name,
+    }));
+    renderOptionScreen(null, options, (opt) => {
+      dropAbility(opt.id);
+      acquireAbility(newDef);
+      state.passiveMilestoneIndex += 1;
+      checkMilestones();
+    }, {
+      kicker: newDef.category + ' is full',
+      tagText: `Picked ${newDef.name} — choose one to drop`,
+      hideKillCount: true,
+    });
   }
 
   function skipPick() {
