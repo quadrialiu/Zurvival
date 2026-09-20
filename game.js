@@ -22,6 +22,7 @@
       baseHp: 10,
       baseSpeed: 25,         // px/sec
       radius: 13,
+      collisionGap: 4,       // px of breathing room kept between zombie circles when queued
       spawnIntervalStart: 0.6, // seconds between spawns at run start
       spawnIntervalMin: 0.05,
       spawnRampKills: 400,   // kills over which spawn interval eases to its min
@@ -59,10 +60,12 @@
         sweepDeg: 25,         // ± from straight up
         burstDuration: 2,     // seconds actively firing
         reloadDuration: 1.2,  // seconds silent between bursts
+        hp: 150,
       },
       teammate: {
         damageMult: 0.8,
         fireRateMult: 1,      // steady pace, matches base weapon fire rate
+        hp: 150,
       },
     },
     explosives: {
@@ -412,13 +415,13 @@
     const leftCount = state.passives.filter(u => u.side === -1).length;
     const rightCount = state.passives.filter(u => u.side === 1).length;
     const side = leftCount <= rightCount ? -1 : 1;
-    const slot = state.passives.filter(u => u.side === side).length;
 
     const unit = {
       type,
       side,
-      slot,
       weapon,
+      hp: typeCfg.hp,
+      maxHp: typeCfg.hp,
       fireTimer: 1 / weapon.fireRate,
     };
     if (type === 'turret') {
@@ -429,10 +432,16 @@
     state.passives.push(unit);
   }
 
+  // Position is recomputed from the unit's current index among same-side
+  // survivors every time it's needed, rather than stored as a fixed slot at
+  // summon time — so when a unit dies, everyone behind it packs forward
+  // instead of leaving a gap or risking two units overlapping.
   function passivePos(unit) {
     const p = playerPos();
     const step = CONFIG.passive.slotOffsetX;
-    return { x: p.x + unit.side * step * (unit.slot + 1), y: p.y };
+    const sameSide = state.passives.filter(u => u.side === unit.side);
+    const idx = sameSide.indexOf(unit);
+    return { x: p.x + unit.side * step * (idx + 1), y: p.y };
   }
 
   function fireFixed(from, angle, weapon) {
@@ -504,6 +513,11 @@
       ctx.shadowBlur = 10;
       ctx.fill();
       ctx.shadowBlur = 0;
+
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(215, 226, 215, 0.85)';
+      ctx.fillText(Math.ceil(u.hp), pos.x, pos.y + 22);
     }
   }
 
@@ -966,18 +980,55 @@
     updateExplosionsFx(dt);
 
     const frozen = state.time < state.freezeActiveUntil;
+
+    // Zombies never move horizontally, so "collision" only ever clamps how
+    // far down (in y) a zombie can advance this frame. A zombie is blocked
+    // by any other zombie whose circle would overlap it (gap included) —
+    // checked against everyone's position from the start of this frame, so
+    // the result doesn't depend on array iteration order.
+    const gap = CONFIG.zombie.collisionGap;
+    const snapshot = state.zombies.map(z => ({ x: z.x, y: z.y, radius: z.radius }));
+
     let dpsThisFrame = 0;
-    for (const zb of state.zombies) {
+    for (let i = 0; i < state.zombies.length; i++) {
+      const zb = state.zombies[i];
+
       if (state.time < zb.magnetUntil) {
-        // position already set by updateStatusEffects this frame
+        // position already set by updateStatusEffects this frame — Magnetize
+        // overrides normal movement/collision entirely while it's pulling.
       } else if (!frozen && zb.y < barricadeY) {
-        zb.y += zb.speed * zb.slowMult * dt;
-        if (zb.y > barricadeY) zb.y = barricadeY;
+        let desiredY = zb.y + zb.speed * zb.slowMult * dt;
+        if (desiredY > barricadeY) desiredY = barricadeY;
+
+        for (let j = 0; j < snapshot.length; j++) {
+          if (j === i) continue;
+          const ob = snapshot[j];
+          if (ob.y <= zb.y) continue; // not ahead of zb — can't block its downward move
+          const dx = ob.x - zb.x;
+          const minDist = zb.radius + ob.radius + gap;
+          if (Math.abs(dx) >= minDist) continue; // too far apart horizontally to ever touch
+          const maxDy = Math.sqrt(Math.max(0, minDist * minDist - dx * dx));
+          const limit = ob.y - maxDy;
+          if (limit < desiredY) desiredY = limit;
+        }
+
+        if (desiredY > zb.y) zb.y = desiredY;
       }
       if (zb.y >= dmgLineY) dpsThisFrame += CONFIG.lines.dpsPerEnemy;
     }
     if (dpsThisFrame > 0) {
-      state.hp = Math.max(0, state.hp - dpsThisFrame * dt);
+      // Overguard: each living teammate/turret shields the player, but does
+      // not shield each other — every passive still takes the full drain
+      // independently, same trigger/formula as the player.
+      const overguardReduction = Math.min(0.6, state.passives.length * 0.10);
+      state.hp = Math.max(0, state.hp - dpsThisFrame * (1 - overguardReduction) * dt);
+
+      for (const u of state.passives) {
+        u.hp -= dpsThisFrame * dt;
+      }
+    }
+    for (let pi = state.passives.length - 1; pi >= 0; pi--) {
+      if (state.passives[pi].hp <= 0) state.passives.splice(pi, 1);
     }
 
     for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
